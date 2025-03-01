@@ -1,5 +1,9 @@
 def calc():
-    print('WELCOME TO SIMPLE PYTHON CALCULATOR THAT ACTUALLY WORK & ROAST YOU')
+    print('')
+    print('╭┈ • ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈ ୨୧ ୨୧ ୨୧ ୨୧ ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈ • ┈╮')
+    print('SIMPLE PYTHON CALCULATOR THAT ACTUALLY WORK & ROAST YOU FOR MISTAKES. ENJOY!')
+    print('╰┈ • ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈ ୨୧ ୨୧ ୨୧ ୨୧ ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈ • ┈╯')
+    print('')
     try:
         count = int(input('How many numbers you want to calculate: '))
         if count < 2:
@@ -20,7 +24,13 @@ def calc():
         for num in numbers[1:]:
             result = eval(f'{result} {operation} {num}')
 
+        print()
         print(f"Result: {result} Thank you!")
+        print()
+        print('♡ ∩_∩') 
+        print('(„• ֊ •„)♡')
+        print('|￣U U￣')
+        print()
     except ValueError:
         print("Invalid input. Numbers only, my dude.")
     except Exception as e:
