@@ -8,15 +8,19 @@ def calc():
         numbers = [float(input(f'Enter number {i+1}: ')) for i in range(count)]
         operation = input('Enter operation (+, -, *, /): ')
 
-        if operation == '/' and 0 in numbers[1:]:
-            print("Division by zero? You trying to break math?")
-            return
+        if operation == '/':
+            if count > 2:
+                print('Duhhh Division only works with 2 numbers. Input 2 nums & try Again Dude.')
+                return
+            if 0 in numbers[1:]:
+                print("Division by zero? You trying to break math? Try Again Dude.")
+                return
         
         result = numbers[0]
         for num in numbers[1:]:
             result = eval(f'{result} {operation} {num}')
 
-        print(f"Result: {result}")
+        print(f"Result: {result} Thank you!")
     except ValueError:
         print("Invalid input. Numbers only, my dude.")
     except Exception as e:
