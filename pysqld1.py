@@ -13,7 +13,7 @@ cursor = conn.cursor()
 # Create Table 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS saas_companies (
-    Rank INT PRIMARY KEY,
+    ComapanyRank INT PRIMARY KEY,
     Company VARCHAR(255),
     Founded YEAR,
     HQ VARCHAR(255),
@@ -32,11 +32,11 @@ with open(csv_path, mode='r', encoding='utf-8') as file:
     for row in reader:
         try:
             cursor.execute("""
-                INSERT INTO saas_companies (Rank, Company, Founded, HQ, Industry, Website, Revenue, Employees)
+                INSERT INTO saas_companies (CRank, Company, Founded, HQ, Industry, Website, Revenue, Employees)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE Company=VALUES(Company)
             """, (
-                int(row['Rank']),
+                int(row['CRank']),
                 row['Company'],
                 int(row['Founded']) if row['Founded'].isdigit() else None,
                 row['HQ'],
@@ -53,7 +53,7 @@ conn.commit()
 # Data Manipulation
 
 print("\nTop 5 Companies by Rank:")
-cursor.execute("SELECT * FROM saas_companies ORDER BY Rank LIMIT 5")
+cursor.execute("SELECT * FROM saas_companies ORDER BY CRank LIMIT 5")
 for row in cursor.fetchall():
     print(row)
 
