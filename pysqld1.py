@@ -1,77 +1,92 @@
-import csv
 import mysql.connector
+import csv
 
-# Connect to MySQL
-conn = mysql.connector.connect(
-    host='localhost',
-    user='root',
-    password='4529111',
-    database='jeu'
-)
-cursor = conn.cursor()
+# Step 1: Connect to MySQL
+try:
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",  # change if needed
+        database="saas"
+    )
+    cursor = connection.cursor()
+    print("✅ Connected to MySQL database.\n")
+except mysql.connector.Error as err:
+    print(f"❌ Database connection failed: {err}")
+    exit()
 
-# Create Table with 'c_rank' instead of 'Rank'
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS saas_companies (
-    c_rank INT PRIMARY KEY,
-    Company VARCHAR(255),
-    Founded YEAR,
-    HQ VARCHAR(255),
-    Industry VARCHAR(255),
-    Website VARCHAR(255),
-    Revenue VARCHAR(255),
-    Employees VARCHAR(255)
-)
-""")
+# Step 2: Ask for action
+print("📌 What would you like to do?")
+print("1. Insert data from CSV")
+print("2. Update a record")
+print("3. Delete records")
+print("4. View top companies")
+choice = input("Enter choice (1-4): ").strip()
 
-# Path to CSV
-csv_path = r'D:\PYTHON\Datasets\d1_top_100_saas_companies_2025.csv'
+if choice == "1":
+    # INSERT from CSV
+    csv_file = input("Enter CSV filename (with .csv extension): ").strip()
+    try:
+        with open(csv_file, "r", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            print("✅ CSV Headers:", reader.fieldnames)
 
-# Load CSV and Insert into DB
-with open(csv_path, mode='r', encoding='utf-8') as file:
-    reader = csv.DictReader(file)
-    for row in reader:
-        try:
-            cursor.execute("""
-                INSERT INTO saas_companies (c_rank, Company, Founded, HQ, Industry, Website, Revenue, Employees)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE Company=VALUES(Company)
-            """, (
-                int(row['Rank']),
-                row['Company'],
-                int(row['Founded']) if row['Founded'].isdigit() else None,
-                row['HQ'],
-                row['Industry'],
-                row['Website'],
-                row['Revenue (est.)'],
-                row['Employees (est.)']
-            ))
-        except Exception as e:
-            print(f"Error inserting row: {row.get('Company', 'Unknown')} – {e}")
+            for row in reader:
+                try:
+                    cursor.execute("""
+                        INSERT INTO saas_companies 
+                        (Company, Founded_Year, HQ, Industry, Total_Funding, ARR, Valuation, Employees, Top_Investors, Product, G2_Rating, c_rank)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        row['Company Name'], row['Founded Year'], row['HQ'], row['Industry'],
+                        row['Total Funding'], row['ARR'], row['Valuation'], row['Employees'],
+                        row['Top Investors'], row['Product'], row['G2 Rating'], row['c_rank']
+                    ))
+                except Exception as e:
+                    print(f"❌ Error inserting row: {row.get('Company Name', 'Unknown')} – {e}")
+            connection.commit()
+            print("✅ Data inserted successfully.\n")
+    except FileNotFoundError:
+        print("❌ CSV file not found.\n")
 
-conn.commit()
+elif choice == "2":
+    # UPDATE
+    company = input("Enter the company name to update: ").strip()
+    column = input("Which column do you want to update (e.g., HQ, Employees, Valuation): ").strip()
+    new_value = input(f"Enter new value for {column}: ").strip()
 
-# Data Manipulation
+    try:
+        cursor.execute(f"UPDATE saas_companies SET {column} = %s WHERE Company = %s", (new_value, company))
+        connection.commit()
+        print(f"✅ Updated {column} for {company}.\n")
+    except Exception as e:
+        print(f"❌ Error updating: {e}")
 
-print("\nTop 5 Companies by c_rank:")
-cursor.execute("SELECT * FROM saas_companies ORDER BY c_rank LIMIT 5")
-for row in cursor.fetchall():
-    print(row)
+elif choice == "3":
+    # DELETE
+    year = input("Delete companies founded before which year? Enter year (e.g., 2000): ").strip()
+    try:
+        cursor.execute("DELETE FROM saas_companies WHERE Founded_Year < %s", (year,))
+        connection.commit()
+        print(f"✅ Deleted companies founded before {year}.\n")
+    except Exception as e:
+        print(f"❌ Error deleting: {e}")
 
-print("\nUpdating HQ of Company='Zapier' to 'Remote':")
-cursor.execute("UPDATE saas_companies SET HQ='Remote' WHERE Company='Zapier'")
-conn.commit()
+elif choice == "4":
+    # VIEW
+    try:
+        cursor.execute("SELECT * FROM saas_companies ORDER BY c_rank LIMIT 5")
+        top_companies = cursor.fetchall()
+        print("\n🏆 Top 5 Companies by c_rank:")
+        for row in top_companies:
+            print(row)
+        print()
+    except Exception as e:
+        print(f"❌ Error retrieving data: {e}")
+else:
+    print("❗ Invalid choice. Please enter 1, 2, 3, or 4.")
 
-print("\nDeleting companies founded before 2000:")
-cursor.execute("DELETE FROM saas_companies WHERE Founded < 2000")
-conn.commit()
-
-# Final Query
-print("\nRemaining Companies in DB:")
-cursor.execute("SELECT Company, Founded FROM saas_companies")
-for row in cursor.fetchall():
-    print(row)
-
-# Close DB connection
+# Step 3: Close connection
 cursor.close()
-conn.close()
+connection.close()
+print("🔒 Connection closed.")
