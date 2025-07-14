@@ -1,0 +1,266 @@
+import pandas as pd
+import mysql.connector
+from mysql.connector import Error
+import os
+
+# Database connection details
+DB_HOST = 'localhost'
+DB_USER = 'root'
+DB_PASSWORD = '4529111'
+DB_NAME = 'jeu'
+CSV_FILE_PATH = r'D:\PYTHON\Datasets\d1.csv'
+
+def create_db_connection():
+    """Create and return a database connection"""
+    try:
+        connection = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
+        )
+        return connection
+    except Error as e:
+        print(f"Error connecting to MySQL: {e}")
+        return None
+
+def create_table(connection):
+    """Create the companies table if it doesn't exist"""
+    try:
+        cursor = connection.cursor()
+        
+        # Check if table exists
+        cursor.execute("SHOW TABLES LIKE 'companies'")
+        result = cursor.fetchone()
+        
+        if not result:
+            create_table_query = """
+            CREATE TABLE companies (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_name VARCHAR(255) NOT NULL,
+                founded_year INT,
+                hq VARCHAR(255),
+                industry VARCHAR(255),
+                total_funding VARCHAR(50),
+                arr VARCHAR(50),
+                valuation VARCHAR(50),
+                employees VARCHAR(50),
+                top_investors TEXT,
+                product TEXT,
+                g2_rating FLOAT
+            )
+            """
+            cursor.execute(create_table_query)
+            connection.commit()
+            print("Table 'companies' created successfully.")
+            
+            # Load data from CSV
+            load_data_from_csv(connection)
+        
+    except Error as e:
+        print(f"Error creating table: {e}")
+
+def load_data_from_csv(connection):
+    """Load data from CSV file into the database"""
+    try:
+        # Read CSV file
+        df = pd.read_csv(CSV_FILE_PATH)
+        
+        # Clean data
+        df = df.where(pd.notnull(df), None)
+        
+        # Insert data into database
+        cursor = connection.cursor()
+        
+        for _, row in df.iterrows():
+            insert_query = """
+            INSERT INTO companies (
+                company_name, founded_year, hq, industry, total_funding, 
+                arr, valuation, employees, top_investors, product, g2_rating
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, tuple(row))
+        
+        connection.commit()
+        print(f"Successfully loaded {len(df)} records from CSV to database.")
+        
+    except Error as e:
+        print(f"Error loading data from CSV: {e}")
+    except FileNotFoundError:
+        print(f"Error: CSV file not found at {CSV_FILE_PATH}")
+
+def show_all_data(connection):
+    """Display all data from the companies table"""
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM companies")
+        results = cursor.fetchall()
+        
+        if not results:
+            print("No data found in the companies table.")
+            return
+        
+        # Convert to DataFrame for better display
+        df = pd.DataFrame(results)
+        df.drop('id', axis=1, inplace=True)  # Remove the auto-increment ID column
+        
+        print("\nAll Company Data:")
+        print(df.to_string(index=False))
+        
+    except Error as e:
+        print(f"Error retrieving data: {e}")
+
+def insert_data(connection):
+    """Insert new data into the companies table"""
+    try:
+        print("\nInsert New Company Data:")
+        company_name = input("Company Name: ")
+        founded_year = input("Founded Year (press Enter if unknown): ")
+        hq = input("Headquarters: ")
+        industry = input("Industry: ")
+        total_funding = input("Total Funding (e.g., $100M): ")
+        arr = input("Annual Recurring Revenue (ARR): ")
+        valuation = input("Valuation: ")
+        employees = input("Number of Employees: ")
+        top_investors = input("Top Investors (comma separated): ")
+        product = input("Main Product(s): ")
+        g2_rating = input("G2 Rating (0-5): ")
+        
+        # Convert empty strings to None
+        founded_year = int(founded_year) if founded_year else None
+        g2_rating = float(g2_rating) if g2_rating else None
+        
+        cursor = connection.cursor()
+        insert_query = """
+        INSERT INTO companies (
+            company_name, founded_year, hq, industry, total_funding, 
+            arr, valuation, employees, top_investors, product, g2_rating
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (
+            company_name, founded_year, hq, industry, total_funding, 
+            arr, valuation, employees, top_investors, product, g2_rating
+        ))
+        connection.commit()
+        print("Data inserted successfully!")
+        
+    except Error as e:
+        print(f"Error inserting data: {e}")
+    except ValueError:
+        print("Invalid input for numeric fields (Founded Year or G2 Rating). Please enter valid numbers.")
+
+def update_data(connection):
+    """Update existing data in the companies table"""
+    try:
+        # First show all companies for reference
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id, company_name FROM companies")
+        companies = cursor.fetchall()
+        
+        if not companies:
+            print("No companies found in the database.")
+            return
+        
+        print("\nList of Companies:")
+        for company in companies:
+            print(f"{company['id']}. {company['company_name']}")
+        
+        company_id = input("\nEnter the ID of the company you want to update: ")
+        
+        # Verify company exists
+        cursor.execute("SELECT * FROM companies WHERE id = %s", (company_id,))
+        company = cursor.fetchone()
+        
+        if not company:
+            print("Company not found with that ID.")
+            return
+        
+        # Show current data
+        print("\nCurrent Data:")
+        for key, value in company.items():
+            print(f"{key.replace('_', ' ').title()}: {value}")
+        
+        # Get column to update
+        columns = [
+            'company_name', 'founded_year', 'hq', 'industry', 'total_funding',
+            'arr', 'valuation', 'employees', 'top_investors', 'product', 'g2_rating'
+        ]
+        
+        print("\nAvailable Columns to Update:")
+        for i, col in enumerate(columns, 1):
+            print(f"{i}. {col.replace('_', ' ').title()}")
+        
+        col_choice = input("\nEnter the number of the column you want to update: ")
+        
+        try:
+            col_choice = int(col_choice)
+            if col_choice < 1 or col_choice > len(columns):
+                raise ValueError
+            column = columns[col_choice - 1]
+        except (ValueError, IndexError):
+            print("Invalid column selection.")
+            return
+        
+        new_value = input(f"Enter new value for {column.replace('_', ' ')}: ")
+        
+        # For numeric fields, try to convert
+        if column in ['founded_year']:
+            try:
+                new_value = int(new_value) if new_value else None
+            except ValueError:
+                print("Founded Year must be a number.")
+                return
+        elif column == 'g2_rating':
+            try:
+                new_value = float(new_value) if new_value else None
+            except ValueError:
+                print("G2 Rating must be a number.")
+                return
+        
+        # Execute update
+        update_query = f"UPDATE companies SET {column} = %s WHERE id = %s"
+        cursor.execute(update_query, (new_value, company_id))
+        connection.commit()
+        print("Data updated successfully!")
+        
+    except Error as e:
+        print(f"Error updating data: {e}")
+
+def main():
+    """Main function to run the program"""
+    # Connect to database
+    connection = create_db_connection()
+    if not connection:
+        return
+    
+    try:
+        # Create table if it doesn't exist and load data
+        create_table(connection)
+        
+        while True:
+            print("\nOptions:")
+            print("1. Show all data")
+            print("2. Insert new data")
+            print("3. Update existing data")
+            print("4. Exit")
+            
+            choice = input("Enter your choice (1-4): ")
+            
+            if choice == '1':
+                show_all_data(connection)
+            elif choice == '2':
+                insert_data(connection)
+            elif choice == '3':
+                update_data(connection)
+            elif choice == '4':
+                print("Exiting program.")
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1 and 4.")
+                
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+
+if __name__ == "__main__":
+    main()

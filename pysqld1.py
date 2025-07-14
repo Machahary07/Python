@@ -1,4 +1,5 @@
 import mysql.connector
+import csv
 
 # Step 1: Connect to MySQL
 try:
@@ -14,55 +15,74 @@ except mysql.connector.Error as err:
     print(f"❌ Database connection failed: {err}")
     exit()
 
-# Step 2: Show action menu
-print("📌 What would you like to do?")
+# Step 2: Insert from CSV (Auto – no prompt)
+csv_path = r"D:\PYTHON\Datasets\d1.csv"
+try:
+    with open(csv_path, "r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        print("📄 Reading CSV:", csv_path)
+        print("✅ CSV Headers:", reader.fieldnames)
+
+        for row in reader:
+            try:
+                cursor.execute("""
+                    INSERT INTO saas_companies 
+                    (Company, Founded_Year, HQ, Industry, Total_Funding, ARR, Valuation, Employees, Top_Investors, Product, G2_Rating, c_rank)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    row['Company Name'], row['Founded Year'], row['HQ'], row['Industry'],
+                    row['Total Funding'], row['ARR'], row['Valuation'], row['Employees'],
+                    row['Top Investors'], row['Product'], row['G2 Rating'], row['c_rank']
+                ))
+            except Exception as e:
+                print(f"❌ Error inserting row ({row.get('Company Name', 'Unknown')}): {e}")
+        connection.commit()
+        print("✅ All CSV data inserted.\n")
+except FileNotFoundError:
+    print("❌ CSV file not found at:", csv_path)
+
+# Step 3: Choose Action
+print("📌 Choose an action:")
 print("1. Update a record")
-print("2. Delete records")
-print("3. View top companies")
+print("2. Delete old companies")
+print("3. View top 5 companies by c_rank")
 choice = input("Enter choice (1-3): ").strip()
 
 if choice == "1":
-    # UPDATE
-    company = input("Enter the company name to update: ").strip()
-    column = input("Which column do you want to update (e.g., HQ, Employees, Valuation): ").strip()
-    new_value = input(f"Enter new value for '{column}': ").strip()
-
+    company = input("🔧 Enter company name to update: ").strip()
+    column = input("📝 Column to update (e.g., HQ, Employees, Valuation): ").strip()
+    new_value = input(f"💡 New value for {column}: ").strip()
     try:
-        query = f"UPDATE saas_companies SET {column} = %s WHERE Company = %s"
-        cursor.execute(query, (new_value, company))
+        cursor.execute(f"UPDATE saas_companies SET {column} = %s WHERE Company = %s", (new_value, company))
         connection.commit()
-        if cursor.rowcount > 0:
-            print(f"✅ Successfully updated '{column}' for {company}.\n")
-        else:
-            print(f"⚠️ No matching company found: {company}\n")
+        print(f"✅ Updated {column} for {company}.\n")
     except Exception as e:
-        print(f"❌ Error updating: {e}")
+        print(f"❌ Update error: {e}")
 
 elif choice == "2":
-    # DELETE
-    year = input("Delete companies founded before which year? Enter year (e.g., 2000): ").strip()
+    year = input("🗑️ Delete companies founded before year (e.g., 2000): ").strip()
     try:
         cursor.execute("DELETE FROM saas_companies WHERE Founded_Year < %s", (year,))
         connection.commit()
         print(f"✅ Deleted companies founded before {year}.\n")
     except Exception as e:
-        print(f"❌ Error deleting: {e}")
+        print(f"❌ Deletion error: {e}")
 
 elif choice == "3":
-    # VIEW TOP COMPANIES
     try:
-        cursor.execute("SELECT Company, c_rank FROM saas_companies ORDER BY c_rank LIMIT 5")
+        cursor.execute("SELECT * FROM saas_companies ORDER BY c_rank LIMIT 5")
         top_companies = cursor.fetchall()
         print("\n🏆 Top 5 Companies by c_rank:")
-        for company, rank in top_companies:
-            print(f"🏢 {company} — Rank: {rank}")
+        for row in top_companies:
+            print(row)
         print()
     except Exception as e:
-        print(f"❌ Error retrieving data: {e}")
-else:
-    print("❗ Invalid choice. Please enter 1, 2, or 3.")
+        print(f"❌ Retrieval error: {e}")
 
-# Step 3: Close connection
+else:
+    print("❗ Invalid choice.")
+
+# Step 4: Close connection
 cursor.close()
 connection.close()
 print("🔒 Connection closed.")
